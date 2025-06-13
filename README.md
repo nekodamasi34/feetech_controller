@@ -1,18 +1,18 @@
-# feetech\_controller
+# feetech\_controller README
 
 ## 概要
 
-**feetech\_controller**は、FeetechサーボをROS2 Humbleでガンガン動かすためのC++ノードだ！
-ジョイパッド入力でパン・チルト・ロール・ロック・発射まで全部制御できる、爆速ロボットコントローラ！
+**feetech\_controller**は、FeetechサーボをROS2 Humbleで制御できる最強ノードや！
+C++製で、ジョイパッド操作やロボットからパンチルト・ロール・発射・ロックまで全部動かせる！
 
 ---
 
 ## ファイル構成
 
 * `pan_tilt_node.cpp`
-  メインノード。ジョイからサーボ全部コントロール！
+  メインノード
 * `feetech_handler.hpp`
-  Feetechサーボの操作クラス
+  Feetechサーボの制御クラス
 * `pan_tilt_ros_if.hpp`
   ROS2インターフェース
 * `serial_port_handler.hpp`
@@ -29,7 +29,7 @@
 
 ---
 
-## ビルド方法
+## ビルド
 
 ```bash
 colcon build --packages-select feetech_controller
@@ -38,7 +38,7 @@ source install/setup.bash
 
 ---
 
-## 起動方法
+## 実行
 
 ```bash
 ros2 run feetech_controller pan_tilt_node
@@ -46,59 +46,102 @@ ros2 run feetech_controller pan_tilt_node
 
 ---
 
-## ジョイパッド割り当て一覧
+## 主な関数・役割
 
-| 機能     | Joy軸/ボタン            | 動作・説明              |
-| ------ | ------------------- | ------------------ |
-| 前後移動   | axes\[1]            | 前進・後退              |
-| 旋回     | axes\[2]            | 左右旋回               |
-| ロール    | axes\[5] / axes\[4] | ロール・アンロール          |
-| 発射ON   | Bボタン(1)             | 発射ON（サーボ23: 150）   |
-| 発射OFF  | Xボタン(2)             | 発射OFF（サーボ23: 1050） |
-| アンロック  | ↑(11)               | アンロック（サーボ24: 250）  |
-| ロック    | ↓(12)               | ロック（サーボ24: 700）    |
-| トルクOFF | LB(9)               | 全サーボのトルクOFF        |
-| トルクON  | RB(10)              | 全サーボのトルクON         |
+### setCommand
 
-* サーボIDは 20:右パン, 21:左パン, 22:ロール, 23:発射, 24:ロック で固定！
-* ボタン番号はコントローラーによって異なる場合があるから注意！
+```cpp
+void setCommand(const int id, const float value);
+```
+
+* **概要**：
+  指定したサーボIDに速度コマンドを送信する関数。
+  valueは-1.0～1.0の範囲で、内部でスケーリングしてサーボに伝える。
+
+* **引数**
+
+  * id : サーボID（例：20, 21, 22など）
+  * value : サーボ速度（-1.0:最大逆回転、0:停止、1.0:最大正回転）
+
+* **特徴**
+
+  * コマンド送信後、1ms(usleep)のガードで暴走防止！
 
 ---
 
-## 実装ポイント
+### setCommandCustomPos
 
-* ジョイ入力は`onJoyReceived`でガッツリ受け取り
-* 各サーボへ`setCommand`/`setCommandCustomPos`/`setTorqueEnable`で一括制御
-* ジョイント状態もpublishしてるので可視化(RVizなど)もOK
-* 異常時はエラー出して止まる安心設計
-* 速度・ガードタイムも調整済み
+```cpp
+void setCommandCustomPos(const int id, const int value);
+```
+
+* **概要**：
+  指定したサーボIDに任意のポジション値を直接送る関数。
+  例：発射アクションやロック動作に使う！
+
+* **引数**
+
+  * id : サーボID（23, 24など）
+  * value : サーボ目標位置値
+
+* **特徴**
+
+  * コマンド送信後、100msのガードタイム
+
+---
+
+### setTorqueEnable
+
+```cpp
+void setTorqueEnable(const int id, const bool state);
+```
+
+* **概要**：
+  指定したサーボIDのトルク（駆動ON/OFF）を切り替える関数。
+
+* **引数**
+
+  * id : サーボID
+  * state : true(1) でトルクON, false(0) でトルクOFF
+
+* **特徴**
+
+  * コマンド送信後、100msのガードタイム
+
+---
+
+### その他のポイント
+
+* **JointState publish**
+  現在の各サーボの状態（位置・速度）を/joint\_statesでパブリッシュ
+  RVizで可視化もできる！
+
+* **シリアル初期化**
+  サーボの初期化に失敗するとノードが強制停止
+
+* **ジョイ入力をonJoyReceivedで全部拾って多機能動作可能**
+  動作例はコード内コメントを参照
 
 ---
 
 ## カスタマイズ
 
-* サーボIDや速度スケールは`pan_tilt_node.cpp`を編集して調整可能！
-* ジョイパッドのボタン割り当ても自由に変更できる！
+* サーボID・スケール値・コマンド内容は`pan_tilt_node.cpp`内で編集可能！
+* 新しい動作追加やジョイ割当の変更も簡単！
 
 ---
 
-## 注意点
+## 注意
 
-* サーボID、配線、通信ポートは**事前確認必須！**
-* 通信失敗時はノードが起動しません
-
----
-
-## 問い合わせ・貢献
-
-質問・改善案は**Issue**や**Pull Request**で待ってるぜ！！
-一緒にロボットを進化させよう🔥
+* サーボIDや配線、通信ポートを事前にしっかり確認してね！
+* 通信エラー時はノードが即終了するよ
 
 ---
 
-## ライセンス
+## お問い合わせ・貢献
 
-自由に使ってOK！（自己責任で！）
+質問・改善案は**Issue**や**Pull Request**で！
+一緒にFeetechサーボぶん回そうぜ！
 
 ---
 
@@ -110,8 +153,8 @@ ros2 run feetech_controller pan_tilt_node
 
 ---
 
-**爆速でパンチルトぶん回せ！！！**
+**さぁ、パンチルト人生をスタートしよう！爆速で！**
 
 ---
 
-他に足したい情報・Q\&Aや図解とか、要望があればどんどん言って！
+もし追加で説明したい関数や、サーボID割り当ての表、よくあるトラブルシューティングとか要望あったらすぐ言ってな！
