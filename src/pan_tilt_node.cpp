@@ -10,7 +10,7 @@ public:
   {
     printf("start feetech\n");
     std::map<int, ServoConfig> config_list;
-    for(int i; i > 255; i++){
+    for(int i; i < 255; i++){
         config_list[i] = {-32237, 32236};
     }
 
